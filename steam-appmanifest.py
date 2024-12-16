@@ -12,8 +12,11 @@
 # On ArchLinux and derivatives:
 # $ sudo pacman -S python python-gobject
 #
+import gi
 
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+
 from xml.etree.ElementTree import ElementTree
 from urllib.request import urlopen
 from os import path, listdir, remove, system, popen
@@ -23,7 +26,8 @@ import re
 # Change this to where your SteamApps folder is located.
 # The default ('~/.steam/steam/SteamApps') should be valid for all Linux installations.
 # "~/.steam/steam" is a symlink to "$XDG_DATA_HOME/Steam" (normally "~/.local/share/Steam")
-SteamApps = path.expanduser('~/.steam/steam/steamapps')
+SteamApps = path.expanduser("~/.steam/steam/steamapps")
+
 
 class DlgToggleApp(Gtk.Dialog):
 
@@ -31,36 +35,46 @@ class DlgToggleApp(Gtk.Dialog):
         Gtk.Dialog.__init__(self, "Install appmanifest", parent, 0)
         self.set_default_size(300, 100)
 
-        label0 = Gtk.Label("Install \""+ name +"\"?")
-        label1 = Gtk.Label("appmanifest_"+ str(appid) +".acf")
+        label0 = Gtk.Label('Install "' + name + '"?')
+        label1 = Gtk.Label("appmanifest_" + str(appid) + ".acf")
 
         if exists:
             self.set_title("appmanifest already exists")
-            self.add_buttons( "Cancel", Gtk.ResponseType.CANCEL,
-                              "Delete anyway", Gtk.ResponseType.OK )
+            self.add_buttons(
+                "Cancel", Gtk.ResponseType.CANCEL, "Delete anyway", Gtk.ResponseType.OK
+            )
             label0.set_text("This will just remove the appmanifest file")
-            label1.set_text("Use Steam to remove all of \""+ name +"\".")
+            label1.set_text('Use Steam to remove all of "' + name + '".')
         else:
-            self.add_buttons("Cancel", Gtk.ResponseType.CANCEL,
-                             "Install", Gtk.ResponseType.OK,)
+            self.add_buttons(
+                "Cancel",
+                Gtk.ResponseType.CANCEL,
+                "Install",
+                Gtk.ResponseType.OK,
+            )
 
         self.get_content_area().add(label0)
         self.get_content_area().add(label1)
         self.show_all()
 
+
 class DlgManual(Gtk.Dialog):
 
     def __init__(self, parent):
-        Gtk.Dialog.__init__(self, "Manually install appmanifest", parent, 0,
-                           ("Cancel", Gtk.ResponseType.CANCEL,
-                            "Install", Gtk.ResponseType.OK))
+        Gtk.Dialog.__init__(
+            self,
+            "Manually install appmanifest",
+            parent,
+            0,
+            ("Cancel", Gtk.ResponseType.CANCEL, "Install", Gtk.ResponseType.OK),
+        )
 
         self.set_default_size(200, 50)
 
         appidlabel = Gtk.Label("Game AppID:")
         self.appidentry = Gtk.Entry()
 
-        appidhbox = Gtk.HBox()
+        appidhbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         appidhbox.pack_start(appidlabel, False, False, True)
         appidhbox.pack_start(self.appidentry, False, False, True)
 
@@ -71,12 +85,13 @@ class DlgManual(Gtk.Dialog):
         instdirhbox.pack_start(instdirlabel, False, False, True)
         instdirhbox.pack_start(self.instdirentry, False, False, True)
 
-        vbox = Gtk.VBox()
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         vbox.pack_start(appidhbox, False, False, True)
         vbox.pack_start(instdirhbox, False, False, True)
 
         self.get_content_area().add(vbox)
         self.show_all()
+
 
 class AppManifest(Gtk.Window):
     def __init__(self):
@@ -85,9 +100,14 @@ class AppManifest(Gtk.Window):
         self.set_default_size(480, 300)
 
         if not path.exists(SteamApps):
-            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.ERROR,
-                                       Gtk.ButtonsType.OK, "Couldn't find a Steam install")
-            dialog.format_secondary_text('Looked in "'+ SteamApps +'"')
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                flags=0,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Couldn't find a Steam install",
+            )
+            dialog.format_secondary_text(f'Looked in "{SteamApps}"')
             dialog.run()
             dialog.destroy()
             exit()
@@ -95,7 +115,7 @@ class AppManifest(Gtk.Window):
         # first row
         row0_label = Gtk.Label("https://steamcommunity.com/id/")
         self.steamid = Gtk.Entry()
-        row0_btn = Gtk.Button("Refresh")
+        row0_btn = Gtk.Button(label="Refresh")
 
         row0_btn.connect("clicked", self.onRefreshClick)
 
@@ -121,17 +141,17 @@ class AppManifest(Gtk.Window):
 
         row2_renderer_check.connect("toggled", self.onAppToggle)
 
-        row2_treeview.append_column( row2_col_toggle )
-        row2_treeview.append_column( row2_col_appid )
-        row2_treeview.append_column( row2_col_title )
+        row2_treeview.append_column(row2_col_toggle)
+        row2_treeview.append_column(row2_col_appid)
+        row2_treeview.append_column(row2_col_title)
 
         row2 = Gtk.ScrolledWindow()
         row2.set_size_request(200, 400)
         row2.add(row2_treeview)
 
         # fourth row
-        row3_manual = Gtk.Button("Manual")
-        row3_quit = Gtk.Button("Quit")
+        row3_manual = Gtk.Button(label="Manual")
+        row3_quit = Gtk.Button(label="Quit")
 
         row3_manual.connect("clicked", self.onManualClick)
         row3_quit.connect("clicked", self.onQuitClick)
@@ -155,22 +175,26 @@ class AppManifest(Gtk.Window):
         if not self.steamid.get_text():
             return
 
-        files = [ f for f in listdir(SteamApps) if isfile(join(SteamApps,f)) ]
+        files = [f for f in listdir(SteamApps) if isfile(join(SteamApps, f))]
         appids = []
 
         for file in files:
             m = re.search(r"appmanifest_([0-9]+).acf", file)
             if m:
-                appids.append( int( m.groups(1)[0] ) )
+                appids.append(int(m.groups(1)[0]))
 
-        url = "http://steamcommunity.com/id/"+ self.steamid.get_text() +"/games?tab=all&xml=1"
+        url = (
+            "http://steamcommunity.com/id/"
+            + self.steamid.get_text()
+            + "/games?tab=all&xml=1"
+        )
         html = urlopen(url)
         tree = ElementTree()
         tree.parse(html)
-        games_xml = tree.getiterator('game')
+        games_xml = tree.iter("game")
         for game in games_xml:
-            appid = int(game.find('appID').text)
-            name = game.find('name').text
+            appid = int(game.find("appID").text)
+            name = game.find("name").text
             exists = appid in appids
             self.game_liststore.append([exists, appid, name])
 
@@ -183,11 +207,11 @@ class AppManifest(Gtk.Window):
         response = dialog.run()
 
         if response == Gtk.ResponseType.OK:
-            p = SteamApps + "/appmanifest_"+ str(appid) +".acf"
+            p = SteamApps + "/appmanifest_" + str(appid) + ".acf"
             if exists:
                 remove(p)
             else:
-                self.addGame( appid, name )
+                self.addGame(appid, name)
         dialog.destroy()
 
         self.refreshSingleRow(path)
@@ -197,7 +221,9 @@ class AppManifest(Gtk.Window):
         response = dialog.run()
 
         if response == Gtk.ResponseType.OK:
-            self.addGame( int(dialog.appidentry.get_text()), dialog.instdirentry.get_text() )
+            self.addGame(
+                int(dialog.appidentry.get_text()), dialog.instdirentry.get_text()
+            )
 
         dialog.destroy()
 
@@ -207,8 +233,8 @@ class AppManifest(Gtk.Window):
 
     # other
     def refreshSingle(self, appid):
-        p = SteamApps + "/appmanifest_"+ str(appid) +".acf"
-        exists = path.isfile( p )
+        p = SteamApps + "/appmanifest_" + str(appid) + ".acf"
+        exists = path.isfile(p)
 
         for row in self.game_liststore:
             if row[1] == appid:
@@ -218,20 +244,27 @@ class AppManifest(Gtk.Window):
         return exists
 
     def refreshSingleRow(self, row):
-        p = SteamApps + "/appmanifest_"+ str(self.game_liststore[row][1]) +".acf"
-        exists = path.isfile( p )
+        p = SteamApps + "/appmanifest_" + str(self.game_liststore[row][1]) + ".acf"
+        exists = path.isfile(p)
 
-        self.game_liststore    [row][0] = exists
+        self.game_liststore[row][0] = exists
 
         return exists
 
     def addGame(self, appid, name):
-        p = SteamApps + "/appmanifest_"+ str(appid) +".acf"
-        f = open(p, 'w')
+        p = SteamApps + "/appmanifest_" + str(appid) + ".acf"
+        f = open(p, "w")
         name = name.replace("/", "-")
-        f.write( '"AppState"\n{\n\t"appid"\t"'+ str(appid) +'"\n\t"Universe"'+
-                 '\t"1"\n\t"installdir"\t"'+ name +'"\n\t"StateFlags"\t"1026"\n}')
+        f.write(
+            '"AppState"\n{\n\t"appid"\t"'
+            + str(appid)
+            + '"\n\t"Universe"'
+            + '\t"1"\n\t"installdir"\t"'
+            + name
+            + '"\n\t"StateFlags"\t"1026"\n}'
+        )
         f.close()
+
 
 win = AppManifest()
 win.connect("delete-event", Gtk.main_quit)
